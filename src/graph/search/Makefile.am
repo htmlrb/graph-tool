@@ -22,6 +22,9 @@ libgraph_tool_search_la_SOURCES = \
     graph_astar.hh\
     graph_astar.cc\
     graph_astar_implicit.cc\
-    graph_search_bind.cc
+    graph_search_bind.cc\
+    graph_moastar.hh\
+    graph_moastar.cc\
+    graph_moastar_implicit.cc
 
 libgraph_tool_search_la_include_HEADERS = 

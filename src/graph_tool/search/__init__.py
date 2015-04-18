@@ -39,12 +39,14 @@ Summary
    dijkstra_search
    bellman_ford_search
    astar_search
+   moastar_search
    BFSVisitor
    DFSVisitor
    DijkstraVisitor
    BellmanFordVisitor
    AStarVisitor
    StopSearch
+   MOAStarVisitor
 
 Examples
 ++++++++
@@ -94,7 +96,7 @@ import weakref
 __all__ = ["bfs_search", "BFSVisitor", "dfs_search", "DFSVisitor",
            "dijkstra_search", "DijkstraVisitor", "bellman_ford_search",
            "BellmanFordVisitor", "astar_search", "AStarVisitor",
-           "StopSearch"]
+           "StopSearch", "moastar_search", "MOAStarVisitor"]
 
 
 class VisitorWrapper(object):
@@ -1592,6 +1594,493 @@ def astar_search(g, source, weight, visitor=AStarVisitor(),
                                  " dist_map.")
             g._Graph__perms.update({"del_vertex": False})
             libgraph_tool_search.astar_search_implicit\
+                (g._Graph__graph, weakref.ref(g), int(source),
+                 _prop("v", g, dist_map), _prop("v", g, pred_map),
+                 _prop("v", g, cost_map), _prop("e", g, weight), visitor,
+                 compare, combine, zero, infinity, h)
+    except StopSearch:
+        g._Graph__perms.update({"del_vertex": True, "del_edge": True,
+                                "add_edge": True})
+    finally:
+        g._Graph__perms.update({"del_vertex": True, "del_edge": True,
+                                "add_edge": True})
+
+    return dist_map, pred_map
+
+
+"""
+Multi Objective ASTAR
+"""
+class MOAStarVisitor(object):
+    r"""A visitor object that is invoked at the event-points inside the
+    :func:`~graph_tool.search.moastar_search` algorithm. By default, it
+    performs no action, and should be used as a base class in order to be
+    useful.
+    """
+
+    def initialize_vertex(self, u):
+        """
+        This is invoked on every vertex of the graph before the start of the
+        graph search.
+        """
+        return
+
+    def examine_vertex(self, u):
+        """ This is invoked on a vertex as it is popped from the queue (i.e. it
+        has the lowest cost on the ``OPEN`` list). This happens immediately
+        before examine_edge() is invoked on each of the out-edges of vertex u.
+        """
+        return
+
+    def examine_edge(self, e):
+        """
+        This is invoked on every out-edge of each vertex after it is examined.
+        """
+        return
+
+    def discover_vertex(self, u):
+        """
+        This is invoked when a vertex is first discovered and is added to the
+        ``OPEN`` list.
+        """
+        return
+
+    def edge_relaxed(self, e):
+        """
+        Upon examination, if the following condition holds then the edge is
+        relaxed (its distance is reduced), and this method is invoked.
+
+        ::
+
+            (u, v) = tuple(e)
+            assert(compare(combine(d[u], weight[e]), d[v]))
+
+        """
+        return
+
+    def edge_not_relaxed(self, e):
+        """
+        Upon examination, if the edge is not relaxed (see
+        :meth:`~graph_tool.search.MOAStarVisitor.edge_relaxed`) then this
+        method is invoked.
+        """
+        return
+
+    def black_target(self, e):
+        """ This is invoked when a vertex that is on the ``CLOSED`` list is
+        "rediscovered" via a more efficient path, and is re-added to the
+        ``OPEN`` list.
+        """
+        return
+
+    def finish_vertex(self, u):
+        """
+        This is invoked on a vertex when it is added to the CLOSED list,
+        which happens after all of its out edges have been examined.
+        """
+        return
+
+
+def moastar_search(g, source, weight, visitor=MOAStarVisitor(),
+                 heuristic=lambda v: 1, dist_map=None, pred_map=None,
+                 cost_map=None, combine=lambda a, b: a + b,
+                 compare=lambda a, b: a < b, zero=0,
+                 infinity=float('inf'), implicit=False):
+    r"""
+    Heuristic :math:`A^*` search on a weighted, directed or undirected graph for the case where all edge weights are non-negative.
+
+    Parameters
+    ----------
+    g : :class:`~graph_tool.Graph`
+        Graph to be used.
+    source : :class:`~graph_tool.Vertex`
+        Source vertex.
+    weight : :class:`~graph_tool.PropertyMap`
+        Edge property map with weight values.
+    visitor : :class:`~graph_tool.search.MOAStarVisitor` (optional, default: ``MOAStarVisitor()``)
+        A visitor object that is invoked at the event points inside the
+        algorithm. This should be a subclass of
+        :class:`~graph_tool.search.MOAStarVisitor`.
+    heuristic : unary function (optional, default: ``lambda v: 1``)
+        The heuristic function that guides the search. It should take a single
+        argument which is a :class:`~graph_tool.Vertex`, and output an estimated
+        distance from the source vertex.
+    dist_map : :class:`~graph_tool.PropertyMap` (optional, default: ``None``)
+        A vertex property map where the distances from the source will be
+        stored.
+    pred_map : :class:`~graph_tool.PropertyMap` (optional, default: ``None``)
+        A vertex property map where the predecessor map will be
+        stored (must have value type "int").
+    cost_map : :class:`~graph_tool.PropertyMap` (optional, default: ``None``)
+        A vertex property map where the vertex costs will be stored. It must
+        have the same value type as ``dist_map``. This parameter is only used if
+        ``implicit`` is True.
+    combine : binary function (optional, default: ``lambda a, b: a + b``)
+        This function is used to combine distances to compute the distance of a
+        path.
+    compare : binary function (optional, default: ``lambda a, b: a < b``)
+        This function is use to compare distances to determine which vertex is
+        closer to the source vertex.
+    implicit : bool (optional, default: ``False``)
+        If true, the underlying graph will be assumed to be implicit
+        (i.e. constructed during the search).
+    zero : int or float (optional, default: ``0``)
+         Value assumed to correspond to a distance of zero by the combine and
+         compare functions.
+    infinity : int or float (optional, default: ``float('inf')``)
+         Value assumed to correspond to a distance of infinity by the combine and
+         compare functions.
+
+
+    Returns
+    -------
+    dist_map : :class:`~graph_tool.PropertyMap`
+        A vertex property map with the computed distances from the source.
+
+    See Also
+    --------
+    bfs_search: Breadth-first search
+    dfs_search: Depth-first search
+    dijkstra_search: Dijkstra's search algorithm
+
+    Notes
+    -----
+
+    The :math:`A^*` algorithm is a heuristic graph search algorithm: an
+    :math:`A^*` search is "guided" by a heuristic function. A heuristic function
+    :math:`h(v)` is one which estimates the cost from a non-goal state (v) in
+    the graph to some goal state, t. Intuitively, :math:`A^*` follows paths
+    (through the graph) to the goal that are estimated by the heuristic function
+    to be the best paths. Unlike best-first search, :math:`A^*` takes into
+    account the known cost from the start of the search to v; the paths
+    :math:`A^*` takes are guided by a function :math:`f(v) = g(v) + h(v)`, where
+    :math:`h(v)` is the heuristic function, and :math:`g(v)` (sometimes denoted
+    :math:`c(s, v)`) is the known cost from the start to v. Clearly, the
+    efficiency of :math:`A^*` is highly dependent on the heuristic function with
+    which it is used.
+
+    The time complexity is :math:`O((E + V) \log V)`.
+
+    The pseudo-code for the :math:`A^*` algorithm is listed below, with the
+    annotated event points, for which the given visitor object will be called
+    with the appropriate method.
+
+    ::
+
+        A*(G, source, h)
+          for each vertex u in V                 initialize vertex u
+            d[u] := f[u] := infinity
+            color[u] := WHITE
+          end for
+          color[s] := GRAY
+          d[s] := 0
+          f[s] := h(source)
+          INSERT(Q, source)                      discover vertex source
+          while (Q != Ø)
+            u := EXTRACT-MIN(Q)                  examine vertex u
+            for each vertex v in Adj[u]          examine edge (u,v)
+              if (w(u,v) + d[u] < d[v])
+                d[v] := w(u,v) + d[u]            edge (u,v) relaxed
+                f[v] := d[v] + h(v)
+                if (color[v] = WHITE)
+                  color[v] := GRAY
+                  INSERT(Q, v)                   discover vertex v
+                else if (color[v] = BLACK)
+                  color[v] := GRAY
+                  INSERT(Q, v)                   reopen vertex v
+                end if
+              else
+                ...                              edge (u,v) not relaxed
+            end for
+            color[u] := BLACK                    finish vertex u
+          end while
+
+
+    Examples
+    --------
+
+    We will use an irregular two-dimensional lattice as an example, where the
+    heuristic function will be based on the euclidean distance to the target.
+
+    The heuristic function will be defined as:
+
+    .. testcode::
+
+        def h(v, target, pos):
+            return sqrt(sum((pos[v].a - pos[target].a) ** 2))
+
+    where ``pos`` is the vertex position in the plane.
+
+    We must define what should be done during the search by subclassing
+    :class:`~graph_tool.search.MOAStarVisitor`, and specializing the appropriate
+    methods. In the following we will keep track of the discovered vertices, and
+    which edges were examined, as well as the predecessor tree. We will also
+    abort the search when a given target vertex is found, by raising the
+    :class:`~graph_tool.search.StopSearch` exception.
+
+    .. testcode::
+
+        class VisitorExample(gt.MOAStarVisitor):
+
+            def __init__(self, touched_v, touched_e, target):
+                self.touched_v = touched_v
+                self.touched_e = touched_e
+                self.target = target
+
+            def discover_vertex(self, u):
+                self.touched_v[u] = True
+
+            def examine_edge(self, e):
+                self.touched_e[e] = True
+
+            def edge_relaxed(self, e):
+                if e.target() == self.target:
+                    raise gt.StopSearch()
+
+
+    With the above class defined, we can perform the :math:`A^*` search as
+    follows.
+
+    .. testsetup::
+
+        from numpy.random import seed, random
+        import matplotlib.cm
+        seed(42)
+
+    >>> points = random((500, 2)) * 4
+    >>> points[0] = [-0.01, 0.01]
+    >>> points[1] = [4.01, 4.01]
+    >>> g, pos = gt.triangulation(points, type="delaunay")
+    >>> weight = g.new_edge_property("double") # Edge weights corresponding to
+    ...                                        # Euclidean distances
+    >>> for e in g.edges():
+    ...    weight[e] = sqrt(sum((pos[e.source()].a -
+    ...                          pos[e.target()].a) ** 2))
+    >>> touch_v = g.new_vertex_property("bool")
+    >>> touch_e = g.new_edge_property("bool")
+    >>> target = g.vertex(1)
+    >>> dist, pred = gt.moastar_search(g, g.vertex(0), weight,
+    ...                              VisitorExample(touch_v, touch_e, target),
+    ...                              heuristic=lambda v: h(v, target, pos))
+
+    We can now observe the best path found, and how many vertices and edges were
+    visited in the process.
+
+    >>> ecolor = g.new_edge_property("string")
+    >>> ewidth = g.new_edge_property("double")
+    >>> ewidth.a = 1
+    >>> for e in g.edges():
+    ...    ecolor[e] = "#3465a4" if touch_e[e] else "#d3d7cf"
+    >>> v = target
+    >>> while v != g.vertex(0):
+    ...     p = g.vertex(pred[v])
+    ...     for e in v.out_edges():
+    ...         if e.target() == p:
+    ...             ecolor[e] = "#a40000"
+    ...             ewidth[e] = 3
+    ...     v = p
+    >>> gt.graph_draw(g, pos=pos, output_size=(300, 300), vertex_fill_color=touch_v,
+    ...               vcmap=matplotlib.cm.binary, edge_color=ecolor,
+    ...               edge_pen_width=ewidth, output="moastar-delaunay.pdf")
+    <...>
+
+    .. testcode::
+       :hide:
+
+       gt.graph_draw(g, pos=pos, output_size=(300, 300), vertex_fill_color=touch_v,
+                     vcmap=matplotlib.cm.binary, edge_color=ecolor,
+                     edge_pen_width=ewidth, output="moastar-delaunay.png")
+
+    .. figure:: moastar-delaunay.*
+       :align: center
+
+       The shortest path is shown in red. The visited edges are shown in blue,
+       and the visited vertices in black.
+
+
+    The :math:`A^*` algorithm is very useful for searching *implicit* graphs,
+    i.e. graphs which are not entirely stored in memory and are generated
+    "on-the-fly" during the search. In the following example we will carry out a
+    search in a hamming hypercube of 10 bits witch has random weights on its
+    edges in the range :math:`[0,1]`. The vertices of the hypercube will be
+    created during the search.
+
+    The heuristic function will use the Hamming distance between vertices:
+
+    .. testcode::
+
+        def h(v, target, state):
+            return sum(abs(state[v].a - target)) / 2
+
+
+    In the following visitor we will keep growing the graph on-the-fly, and
+    abort the search when a given target vertex is found, by raising the
+    :class:`~graph_tool.search.StopSearch` exception.
+
+    .. testcode::
+
+        from numpy.random import random
+
+        class HammingVisitor(gt.moAStarVisitor):
+
+            def __init__(self, g, target, state, weight, dist, cost):
+                self.g = g
+                self.state = state
+                self.target = target
+                self.weight = weight
+                self.dist = dist
+                self.cost = cost
+                self.visited = {}
+
+            def examine_vertex(self, u):
+                for i in range(len(self.state[u])):
+                    nstate = list(self.state[u])
+                    nstate[i] ^= 1
+                    if tuple(nstate) in self.visited:
+                        v = self.visited[tuple(nstate)]
+                    else:
+                        v = self.g.add_vertex()
+                        self.visited[tuple(nstate)] = v
+                        self.state[v] = nstate
+                        self.dist[v] = self.cost[v] = float('inf')
+                    for e in u.out_edges():
+                        if e.target() == v:
+                            break
+                    else:
+                        e = self.g.add_edge(u, v)
+                        self.weight[e] = random()
+                self.visited[tuple(self.state[u])] = u
+
+            def edge_relaxed(self, e):
+                if self.state[e.target()] == self.target:
+                    self.visited[tuple(self.target)] = e.target()
+                    raise gt.StopSearch()
+
+    With the above class defined, we can perform the :math:`A^*` search as
+    follows.
+
+    .. testsetup::
+
+        from numpy.random import seed, random
+        seed(42)
+        gt.seed_rng(42)
+
+    >>> g = gt.Graph(directed=False)
+    >>> state = g.new_vertex_property("vector<bool>")
+    >>> v = g.add_vertex()
+    >>> state[v] = [0] * 10
+    >>> target = [1] * 10
+    >>> weight = g.new_edge_property("double")
+    >>> dist = g.new_vertex_property("double")
+    >>> cost = g.new_vertex_property("double")
+    >>> visitor = HammingVisitor(g, target, state, weight, dist, cost)
+    >>> dist, pred = gt.moastar_search(g, g.vertex(0), weight, visitor, dist_map=dist,
+    ...                              cost_map=cost, heuristic=lambda v: h(v, array(target), state),
+    ...                              implicit=True)
+
+    We can now observe the best path found, and how many vertices and edges were
+    visited in the process.
+
+    >>> ecolor = g.new_edge_property("string")
+    >>> vcolor = g.new_vertex_property("string")
+    >>> ewidth = g.new_edge_property("double")
+    >>> ewidth.a = 1
+    >>> for e in g.edges():
+    ...    ecolor[e] = "black"
+    >>> for v in g.vertices():
+    ...    vcolor[v] = "white"
+    >>> v = visitor.visited[tuple(target)]
+    >>> while v != g.vertex(0):
+    ...     vcolor[v] = "black"
+    ...     p = g.vertex(pred[v])
+    ...     for e in v.out_edges():
+    ...         if e.target() == p:
+    ...             ecolor[e] = "#a40000"
+    ...             ewidth[e] = 3
+    ...     v = p
+    >>> vcolor[v] = "black"
+    >>> pos = gt.graph_draw(g, output_size=(300, 300), vertex_fill_color=vcolor, edge_color=ecolor,
+    ...                     edge_pen_width=ewidth, output="moastar-implicit.pdf")
+
+    .. testcode::
+       :hide:
+
+       gt.graph_draw(g, pos=pos, output_size=(300, 300), vertex_fill_color=vcolor,
+                     edge_color=ecolor, edge_pen_width=ewidth,
+                     output="moastar-implicit.png")
+
+
+    .. figure:: moastar-implicit.*
+       :align: center
+
+       The shortest path is shown in red, and the vertices which belong to it
+       are in black. Note that the number of vertices visited is much smaller
+       than the total number :math:`2^{10} = 1024`.
+
+    References
+    ----------
+
+    .. [astar] Hart, P. E.; Nilsson, N. J.; Raphael, B. "A Formal Basis for the
+       Heuristic Determination of Minimum Cost Paths". IEEE Transactions on
+       Systems Science and Cybernetics SSC4 4 (2): 100-107, 1968.
+       :doi:`10.1109/TSSC.1968.300136`
+    .. [astar-bgl] http://www.boost.org/doc/libs/release/libs/graph/doc/astar_search.html
+    .. [astar-wikipedia] http://en.wikipedia.org/wiki/A*_search_algorithm
+    """
+
+    visitor = VisitorWrapper(g, visitor,
+                             ["initialize_vertex", "examine_vertex", "finish_vertex"],
+                             ["initialize_vertex"])
+
+    if dist_map is None:
+        dist_map = g.new_vertex_property(weight.value_type())
+    if pred_map is None:
+        pred_map = g.new_vertex_property("int")
+    if pred_map.value_type() != "int32_t":
+        raise ValueError("pred_map must be of value type 'int32_t', not '%s'." % \
+                             pred_map.value_type())
+
+    dist_type = dist_map.python_value_type()
+    if dist_type is not object:
+        h = lambda v: dist_type(heuristic(v))
+    else:
+        h = heuristic
+
+    try:
+        if dist_map.value_type() != "python::object":
+            zero = _python_type(dist_map.value_type())(zero)
+    except OverflowError:
+        zero = (weight.a.max() + 1) * g.num_vertices()
+        zero = _python_type(dist_map.value_type())(zero)
+
+    try:
+        if dist_map.value_type() != "python::object":
+            infinity = _python_type(dist_map.value_type())(infinity)
+    except OverflowError:
+        infinity = (weight.a.max() + 1) * g.num_vertices()
+        infinity = _python_type(dist_map.value_type())(infinity)
+
+
+    try:
+        if not implicit:
+            g._Graph__perms.update({"del_vertex": False, "del_edge": False,
+                                    "add_edge": False})
+
+            libgraph_tool_search.moastar_search(g._Graph__graph,
+                                              weakref.ref(g),
+                                              int(source), _prop("v", g, dist_map),
+                                              _prop("v", g, pred_map),
+                                              _prop("e", g, weight), visitor,
+                                              compare, combine, zero, infinity,
+                                              h)
+        else:
+            if cost_map is None:
+                cost_map = g.new_vertex_property(dist_map.value_type())
+            elif cost_map.value_type() != dist_map.value_type():
+                raise ValueError("The cost_map value type must be the same as" +
+                                 " dist_map.")
+            g._Graph__perms.update({"del_vertex": False})
+            libgraph_tool_search.moastar_search_implicit\
                 (g._Graph__graph, weakref.ref(g), int(source),
                  _prop("v", g, dist_map), _prop("v", g, pred_map),
                  _prop("v", g, cost_map), _prop("e", g, weight), visitor,

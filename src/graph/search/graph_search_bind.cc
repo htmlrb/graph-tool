@@ -25,6 +25,8 @@ void export_dijkstra();
 void export_bellman_ford();
 void export_astar();
 void export_astar_implicit();
+void export_moastar();
+void export_moastar_implicit();
 
 BOOST_PYTHON_MODULE(libgraph_tool_search)
 {
@@ -34,4 +36,6 @@ BOOST_PYTHON_MODULE(libgraph_tool_search)
     export_bellman_ford();
     export_astar();
     export_astar_implicit();
+    export_moastar();
+    export_moastar_implicit();
 }
