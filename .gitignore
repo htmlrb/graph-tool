@@ -21,3 +21,4 @@ Makefile
 /autom4te.cache
 /m4/l*.m4
 /src/graph/.*
+/src/graph/*/.libs/*.la
