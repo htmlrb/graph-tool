@@ -22,3 +22,6 @@ Makefile
 /m4/l*.m4
 /src/graph/.*
 /src/graph/*/.libs/*.la
+/src/graph/search/.deps
+/src/graph/search/.libs
+.cproject
