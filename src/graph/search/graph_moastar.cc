@@ -20,6 +20,7 @@
 
 #include <boost/python.hpp>
 #include <boost/graph/astar_search.hpp>
+#include <boost/graph/moastar_search.hpp>
 
 #include "graph.hh"
 #include "graph_selectors.hh"
