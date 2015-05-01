@@ -6,6 +6,7 @@
 // accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 //=======================================================================
+// EDITED BY HAITAM
 //
 
 #ifndef BOOST_GRAPH_MOASTAR_SEARCH_HPP
@@ -18,7 +19,7 @@
 #include <boost/graph/named_function_params.hpp>
 #include <boost/graph/relax.hpp>
 #include <boost/graph/exception.hpp>
-#include <boost/graph/breadth_first_search.hpp>
+#include <boost/graph/mo_breadth_first_search.hpp>
 #include <boost/graph/iteration_macros.hpp>
 #include <boost/graph/detail/d_ary_heap.hpp>
 #include <boost/graph/property_maps/constant_property_map.hpp>
@@ -26,6 +27,7 @@
 #include <boost/property_map/vector_property_map.hpp>
 #include <boost/property_map/function_property_map.hpp>
 #include <boost/concept/assert.hpp>
+#include <iostream>
 
 namespace boost {
 
@@ -75,12 +77,12 @@ struct MOAStarVisitorConcept {
 };
 
 template<class Visitors = null_visitor>
-class moastar_visitor: public bfs_visitor<Visitors> {
+class moastar_visitor: public mobfs_visitor<Visitors> {
 public:
 	moastar_visitor() {
 	}
 	moastar_visitor(Visitors vis) :
-			bfs_visitor<Visitors>(vis) {
+			mobfs_visitor<Visitors>(vis) {
 	}
 
 	template<class Edge, class Graph>
@@ -115,13 +117,13 @@ namespace detail {
 template<class MOAStarHeuristic, class UniformCostVisitor, class UpdatableQueue,
 		class PredecessorMap, class CostMap, class DistanceMap, class WeightMap,
 		class ColorMap, class BinaryFunction, class BinaryPredicate>
-struct moastar_bfs_visitor {
+struct mo_astar_bfs_visitor {
 	typedef typename property_traits<CostMap>::value_type C;
 	typedef typename property_traits<ColorMap>::value_type ColorValue;
 	typedef color_traits<ColorValue> Color;
 	typedef typename property_traits<DistanceMap>::value_type distance_type;
 
-	moastar_bfs_visitor(MOAStarHeuristic h, UniformCostVisitor vis,
+	mo_astar_bfs_visitor(MOAStarHeuristic h, UniformCostVisitor vis,
 			UpdatableQueue& Q, PredecessorMap p, CostMap c, DistanceMap d,
 			WeightMap w, ColorMap col, BinaryFunction combine,
 			BinaryPredicate compare, C zero) :
@@ -241,12 +243,14 @@ inline void moastar_search_no_init(const VertexListGraph &g,
 			CompareFunction> MutableQueue;
 	MutableQueue Q(cost, index_in_heap, compare);
 
-	detail::moastar_bfs_visitor<MOAStarHeuristic, MOAStarVisitor, MutableQueue,
+	// HERE std::cout << "moastar_search_no_init " << std::endl;
+
+	detail::mo_astar_bfs_visitor<MOAStarHeuristic, MOAStarVisitor, MutableQueue,
 			PredecessorMap, CostMap, DistanceMap, WeightMap, ColorMap,
-			CombineFunction, CompareFunction> bfs_vis(h, vis, Q, predecessor,
+			CombineFunction, CompareFunction> mo_bfs_vis(h, vis, Q, predecessor,
 			cost, distance, weight, color, combine, compare, zero);
 
-	breadth_first_visit(g, s, Q, bfs_vis, color);
+	mo_breadth_first_visit(g, s, Q, mo_bfs_vis, color);
 }
 
 /**
@@ -256,7 +260,7 @@ inline void moastar_search_no_init(const VertexListGraph &g,
 namespace graph_detail {
 
 template<typename A, typename B>
-struct select1st {
+struct select1st_mo {
 	typedef std::pair<A, B> argument_type;
 	typedef A result_type;
 	A operator()(const std::pair<A, B>& p) const {
@@ -284,11 +288,11 @@ inline void moastar_search_no_init_tree(const VertexListGraph &g,
 	typedef typename property_traits<DistanceMap>::value_type Distance;
 	typedef d_ary_heap_indirect<std::pair<Distance, Vertex>, 4,
 			null_property_map<std::pair<Distance, Vertex>, std::size_t>,
-			function_property_map<graph_detail::select1st<Distance, Vertex>,
+			function_property_map<graph_detail::select1st_mo<Distance, Vertex>,
 					std::pair<Distance, Vertex> >, CompareFunction> MutableQueue;
 	MutableQueue Q(
 			make_function_property_map<std::pair<Distance, Vertex> >(
-					graph_detail::select1st<Distance, Vertex>()),
+					graph_detail::select1st_mo<Distance, Vertex>()),
 			null_property_map<std::pair<Distance, Vertex>, std::size_t>(),
 			compare);
 
@@ -336,6 +340,8 @@ inline void moastar_search(const VertexListGraph &g,
 		CostMap cost, DistanceMap distance, WeightMap weight,
 		VertexIndexMap index_map, ColorMap color, CompareFunction compare,
 		CombineFunction combine, CostInf inf, CostZero zero) {
+
+	// HERE std::cout << "moastar_search " << std::endl;
 
 	typedef typename property_traits<ColorMap>::value_type ColorValue;
 	typedef color_traits<ColorValue> Color;
@@ -464,6 +470,7 @@ void moastar_search_no_init(const VertexListGraph &g,
 			tag::weight_map, edge_weight_t, VertexListGraph>::type weight_map_type;
 	typedef typename boost::property_traits<weight_map_type>::value_type D;
 	const D inf = arg_pack[_distance_inf || detail::get_max<D>()];
+
 	moastar_search_no_init(g, s, h,
 			arg_pack[_visitor | make_moastar_visitor(null_visitor())],
 			arg_pack[_predecessor_map | dummy_property_map()],
@@ -492,6 +499,7 @@ void moastar_search_no_init_tree(const VertexListGraph &g,
 			tag::weight_map, edge_weight_t, VertexListGraph>::type weight_map_type;
 	typedef typename boost::property_traits<weight_map_type>::value_type D;
 	const D inf = arg_pack[_distance_inf || detail::get_max<D>()];
+
 	moastar_search_no_init_tree(g, s, h,
 			arg_pack[_visitor | make_moastar_visitor(null_visitor())],
 			arg_pack[_predecessor_map | dummy_property_map()],

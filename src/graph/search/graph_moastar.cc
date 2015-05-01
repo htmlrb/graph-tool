@@ -19,7 +19,7 @@
 #include "graph_python_interface.hh"
 
 #include <boost/python.hpp>
-#include <boost/graph/astar_search.hpp>
+//#include <boost/graph/astar_search.hpp>
 #include <boost/graph/moastar_search.hpp>
 
 #include "graph.hh"
@@ -63,7 +63,7 @@ struct do_moastar_search
         DynamicPropertyMapWrap<dtype_t, edge_t> weight(aweight,
                                                        edge_properties());
         
-        astar_search(g, vertex(s, g), MOAStarH<dtype_t>(h.first, h.second),
+        moastar_search(g, vertex(s, g), MOAStarH<dtype_t>(h.first, h.second),
                      vis, pred, cost, dist, weight, get(vertex_index, g), color,
                      cmp.first, cmp.second, i, z);
    }
